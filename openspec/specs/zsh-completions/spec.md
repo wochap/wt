@@ -11,7 +11,7 @@ The system SHALL provide tab-completion for wt subcommands.
 
 #### Scenario: Complete subcommands
 - **WHEN** user types `wt <TAB>`
-- **THEN** zsh suggests: `clone`, `switch`, `list`, `rm`, `help`
+- **THEN** zsh suggests: `clone`, `switch`, `list`, `rm`, `doctor`, `help`
 
 ### Requirement: Switch Flag Completion
 The system SHALL complete flags for `wt switch`.
