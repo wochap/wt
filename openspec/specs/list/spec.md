@@ -7,17 +7,17 @@ Display all worktrees with status information in a formatted table.
 ## Requirements
 
 ### Requirement: Table Output
-The system SHALL display worktrees in a formatted table with columns: Branch, Status, HEAD±, Path, Commit, Age, Message.
+The system SHALL display worktrees in a formatted table with columns: Branch, Status, HEAD±, Path, Commit, Age, Message. Column headers SHALL be rendered in bold. Each column value SHALL use its designated color.
 
 #### Scenario: List multiple worktrees
 - **WHEN** user runs `wt list`
-- **THEN** system displays header row with column names
-- **THEN** system displays one row per worktree
+- **THEN** system displays header row with column names in bold
+- **THEN** system displays one row per worktree with colored values
 - **THEN** system displays footer with worktree count
 
 #### Scenario: Current worktree indicator
 - **WHEN** a worktree is the current working directory
-- **THEN** that row shows `@` in gutter column
+- **THEN** that row shows `@` in gutter column in bold green
 - **THEN** Path column shows `.` instead of full path
 
 #### Scenario: Other worktrees
@@ -26,15 +26,15 @@ The system SHALL display worktrees in a formatted table with columns: Branch, St
 - **THEN** Path column shows path relative to project root
 
 ### Requirement: Status Column
-The system SHALL show clean/dirty status for each worktree.
+The system SHALL show clean/dirty status for each worktree with color.
 
 #### Scenario: Clean worktree
 - **WHEN** worktree has no uncommitted changes
-- **THEN** Status column shows `✓`
+- **THEN** Status column shows `✓` in green
 
 #### Scenario: Dirty worktree
 - **WHEN** worktree has uncommitted changes
-- **THEN** Status column shows `M`
+- **THEN** Status column shows `M` in yellow
 
 ### Requirement: HEAD± Column
 The system SHALL show uncommitted diff stats relative to HEAD.
@@ -48,15 +48,15 @@ The system SHALL show uncommitted diff stats relative to HEAD.
 - **THEN** HEAD± column is empty
 
 ### Requirement: Branch Column
-The system SHALL show branch name or detached indicator.
+The system SHALL show branch name or detached indicator in cyan.
 
 #### Scenario: Attached worktree
 - **WHEN** worktree is on a branch
-- **THEN** Branch column shows branch name
+- **THEN** Branch column shows branch name in cyan
 
 #### Scenario: Detached worktree
 - **WHEN** worktree is in detached HEAD state
-- **THEN** Branch column shows `(detached)`
+- **THEN** Branch column shows `(detached)` in cyan
 
 ### Requirement: Parallel Data Collection
 The system SHALL collect git log, status, and diff data in parallel for performance.
@@ -75,12 +75,12 @@ The system SHALL truncate commit messages to fit terminal width.
 - **THEN** system truncates message to fit within `tput cols`
 
 ### Requirement: Footer Count
-The system SHALL display total worktree count.
+The system SHALL display total worktree count with dim styling.
 
 #### Scenario: Multiple worktrees
 - **WHEN** listing N worktrees where N > 1
-- **THEN** footer shows `○ N worktrees`
+- **THEN** footer shows `○ N worktrees` with `○` in dim
 
 #### Scenario: Single worktree
 - **WHEN** listing 1 worktree
-- **THEN** footer shows `○ 1 worktree`
+- **THEN** footer shows `○ 1 worktree` with `○` in dim

@@ -7,14 +7,14 @@ Create a new wt project from a remote repository using bare clone layout.
 ## Requirements
 
 ### Requirement: Bare Clone Layout
-The system SHALL create a bare git repository at `<dir>/.git` and a worktree for the default branch at `<dir>/<default-branch>/`.
+The system SHALL create a bare git repository at `<dir>/.git` and a worktree for the default branch at `<dir>/<default-branch>/`. Success messages SHALL include color styling.
 
 #### Scenario: Clone with explicit directory
 - **WHEN** user runs `wt clone <url> <dir>`
 - **THEN** system creates `<dir>/.git` as bare repo
 - **THEN** system creates worktree at `<dir>/<default-branch>/`
-- **THEN** system prints layout summary to stderr
-- **THEN** system prints default worktree path to stdout
+- **THEN** system prints layout summary to stderr with directory paths in green and `.git` label in dim
+- **THEN** system prints default worktree path to stdout (no color)
 
 #### Scenario: Clone with implicit directory
 - **WHEN** user runs `wt clone <url>` without directory argument

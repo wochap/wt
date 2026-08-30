@@ -7,15 +7,15 @@ Remove worktrees and optionally their associated branches.
 ## Requirements
 
 ### Requirement: Remove Clean Worktree
-The system SHALL remove a clean worktree after confirmation.
+The system SHALL remove a clean worktree after confirmation. Summary and result messages SHALL include color styling.
 
 #### Scenario: Remove clean worktree
 - **WHEN** user runs `wt rm <name>` on clean worktree
-- **THEN** system displays summary (path, branch info)
+- **THEN** system displays summary with path in green and branch name in cyan
 - **THEN** system prompts `Confirm? [y/N]`
 - **THEN** on `y` input, system removes worktree
 - **THEN** system deletes associated local branch
-- **THEN** system prints results to stderr
+- **THEN** system prints results to stderr with directory name in green and branch name in cyan
 
 #### Scenario: Abort on non-confirmation
 - **WHEN** user runs `wt rm <name>` and enters anything other than `y`/`Y`
@@ -23,7 +23,7 @@ The system SHALL remove a clean worktree after confirmation.
 - **THEN** system does not remove worktree
 
 ### Requirement: Dirty Worktree Protection
-The system SHALL refuse to remove dirty worktrees without `--force`.
+The system SHALL refuse to remove dirty worktrees without `--force`. Warning messages SHALL include color styling.
 
 #### Scenario: Dirty worktree without force
 - **WHEN** user runs `wt rm <name>` on worktree with uncommitted changes
@@ -31,17 +31,17 @@ The system SHALL refuse to remove dirty worktrees without `--force`.
 
 #### Scenario: Dirty worktree with force
 - **WHEN** user runs `wt rm <name> --force` on dirty worktree
-- **THEN** system displays warning about uncommitted changes
+- **THEN** system displays warning with `⚠` symbol in yellow
 - **THEN** system proceeds with removal after confirmation
 
 ### Requirement: Remote Branch Deletion
-The system SHALL optionally delete the remote branch with `--remote` flag.
+The system SHALL optionally delete the remote branch with `--remote` flag. Messages SHALL include color styling.
 
 #### Scenario: Remove with remote deletion
 - **WHEN** user runs `wt rm <name> --remote`
 - **THEN** system removes worktree and local branch
 - **THEN** system pushes `origin --delete <branch>`
-- **THEN** system prints remote deletion result to stderr
+- **THEN** system prints remote deletion result to stderr with branch name in cyan
 
 #### Scenario: Remote deletion fails
 - **WHEN** remote branch deletion fails
