@@ -32,6 +32,18 @@ The system SHALL cd to default worktree when current directory is removed. The f
 - **WHEN** user runs `wt rm <name>` on non-current worktree
 - **THEN** shell does not change directory
 
+### Requirement: Auto-cd After Rename
+The system SHALL cd into the renamed worktree after a successful rename, because the previous working directory no longer exists.
+
+#### Scenario: Rename with shell wrapper
+- **WHEN** user runs `wt rename <new-name>` with the shell function loaded
+- **THEN** shell captures stdout (new worktree path)
+- **THEN** shell cd's into that directory
+
+#### Scenario: Failed rename
+- **WHEN** user runs `wt rename <new-name>` and the command fails
+- **THEN** shell does not change directory
+
 ### Requirement: Passthrough for Other Commands
 The system SHALL pass through all other commands to the wt binary.
 
