@@ -1,19 +1,23 @@
 ## ADDED Requirements
 
 ### Requirement: Pull changes from a source worktree or repository
-The system SHALL provide a `wt pull <source>` command that squash-applies changes from a source worktree or git repository into the current worktree.
+The system SHALL provide a `wt pull <source>` command that squash-applies changes from a source worktree or git repository into the current git repository or directory.
 
-#### Scenario: Pull from worktree folder name
-- **WHEN** user runs `wt pull <name>` where `<name>` is a worktree folder in the current project
+#### Scenario: Pull from worktree folder name inside wt project
+- **WHEN** user runs `wt pull <name>` from inside a wt project and `<name>` is a worktree folder in that project
 - **THEN** system resolves source to `$root/<name>` and applies changes to the current worktree
 
 #### Scenario: Pull from path
 - **WHEN** user runs `wt pull <path>` where `<path>` is a filesystem path to a git repository or worktree
-- **THEN** system uses that path as the source and applies changes to the current worktree
+- **THEN** system uses that path as the source and applies changes to the current repository or directory
 
-#### Scenario: Source folder name not found
-- **WHEN** user runs `wt pull <name>` and no worktree with that folder name exists in the current project
+#### Scenario: Source folder name not found falls back to path
+- **WHEN** user runs `wt pull <name>` inside a wt project and no worktree with that folder name exists
 - **THEN** system SHALL fall back to treating the argument as a filesystem path
+
+#### Scenario: Folder name resolution skipped outside wt project
+- **WHEN** user runs `wt pull <name>` from a plain git repo or non-git directory
+- **THEN** system SHALL treat the argument directly as a filesystem path (no folder-name resolution)
 
 #### Scenario: Source path is not a git repository
 - **WHEN** user runs `wt pull <path>` and the path is not a git repository or worktree
@@ -24,21 +28,29 @@ The system SHALL provide a `wt pull <source>` command that squash-applies change
 - **THEN** system SHALL print usage and exit non-zero
 
 ### Requirement: Same-repository verification
-The system SHALL verify that source and target are the same git repository before applying changes.
+The system SHALL verify that source and target are the same git repository before applying changes, when the target is a git repository.
 
 #### Scenario: Same repository confirmed
-- **WHEN** source and target share at least one root commit (`git rev-list --max-parents=0 HEAD`)
+- **WHEN** target is a git repo and source and target share at least one root commit (`git rev-list --max-parents=0 HEAD`)
 - **THEN** system proceeds with the pull operation
 
 #### Scenario: Different repositories
-- **WHEN** source and target share no root commits
+- **WHEN** target is a git repo and source and target share no root commits
 - **THEN** system SHALL print an error indicating the repositories are unrelated and exit non-zero
 
+#### Scenario: Target is not a git repository with --staged
+- **WHEN** target is not a git repo and `--staged` is passed
+- **THEN** system SHALL skip same-repo verification and apply the patch directly
+
+#### Scenario: Target is not a git repository without --staged
+- **WHEN** target is not a git repo and `--staged` is not passed
+- **THEN** system SHALL print an error indicating default mode requires a git repository target and exit non-zero
+
 ### Requirement: Default squash mode
-The system SHALL squash all changes since the common ancestor into the current worktree.
+The system SHALL squash all changes since the common ancestor into the current git repository.
 
 #### Scenario: Same-project worktrees (shared object store)
-- **WHEN** source is a worktree in the same project as target
+- **WHEN** source is a worktree sharing an object store with target
 - **THEN** system SHALL use `git merge --squash` with the source branch or commit, staging the result without committing
 
 #### Scenario: Cross-clone repositories (separate object stores)
@@ -56,23 +68,27 @@ The system SHALL squash all changes since the common ancestor into the current w
 ### Requirement: Staged mode
 The system SHALL support a `--staged` flag to apply only the staged changes from the source.
 
-#### Scenario: Pull staged changes
-- **WHEN** user runs `wt pull <source> --staged`
-- **THEN** system SHALL generate a patch from `git diff --cached` in the source and apply it to the target with `git apply`, regardless of whether source is same-project or cross-clone
+#### Scenario: Pull staged changes into git repo
+- **WHEN** user runs `wt pull <source> --staged` from a git repository
+- **THEN** system SHALL generate a patch from `git diff --cached` in the source and apply it to the target with `git apply`
+
+#### Scenario: Pull staged changes into non-git directory
+- **WHEN** user runs `wt pull <source> --staged` from a directory that is not a git repository
+- **THEN** system SHALL generate a patch from `git diff --cached` in the source and apply it to the current directory with `git apply`
 
 #### Scenario: Nothing staged in source
 - **WHEN** user runs `wt pull <source> --staged` and source has no staged changes
 - **THEN** system SHALL print an error indicating nothing is staged in source and exit non-zero
 
 ### Requirement: Dirty target confirmation
-The system SHALL warn and prompt for confirmation when the target worktree has uncommitted changes.
+The system SHALL warn and prompt for confirmation when the target has uncommitted changes.
 
 #### Scenario: Target is dirty and user confirms
-- **WHEN** target has uncommitted changes and user confirms the prompt
+- **WHEN** target is a git repo with uncommitted changes and user confirms the prompt
 - **THEN** system proceeds with the pull operation
 
 #### Scenario: Target is dirty and user declines
-- **WHEN** target has uncommitted changes and user declines the prompt
+- **WHEN** target is a git repo with uncommitted changes and user declines the prompt
 - **THEN** system SHALL abort without making changes
 
 #### Scenario: Target is clean

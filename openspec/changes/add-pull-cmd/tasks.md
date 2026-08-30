@@ -17,3 +17,10 @@
 
 - [x] 3.1 Add `pull` to subcommand list in `wt.zsh`
 - [x] 3.2 Add `--staged` flag completion and worktree name completion for `wt pull` in `wt.zsh`
+
+## 4. Broaden target support
+
+- [x] 4.1 Replace `find_project_root` requirement in `cmd_pull` with `git rev-parse --git-dir` check; attempt `find_project_root` optionally for folder-name source resolution
+- [x] 4.2 Update `resolve_pull_source` to accept empty root (skip folder-name resolution when not in wt project)
+- [x] 4.3 Allow `--staged` when target is not a git repo: skip same-repo verification and dirty check, apply patch directly
+- [x] 4.4 Die with clear error when target is not a git repo and `--staged` not passed

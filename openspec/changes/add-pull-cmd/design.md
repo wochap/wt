@@ -2,15 +2,15 @@
 
 `wt` manages git worktrees under a bare-repo layout. Worktrees within a project share one object store. Users also work across separate clones of the same repository (different remotes, different object stores). Today, moving changes between worktrees or clones requires manual git commands.
 
-The `wt` binary is a single bash script. All commands follow the pattern: resolve project root via `find_project_root`, operate via `git -C`, print colored output to stderr, print machine-readable paths to stdout.
+The `wt` binary is a single bash script. Most commands follow the pattern: resolve project root via `find_project_root`, operate via `git -C`, print colored output to stderr, print machine-readable paths to stdout. `pull` is an exception: it works from any git repository (or, with `--staged`, any directory) — not only wt projects.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Single command to squash-apply changes from a source worktree/repo into the current worktree
+- Single command to squash-apply changes from a source worktree/repo into the current git repository or directory
 - Handle same-project (shared objects) and cross-clone (separate objects) transparently
-- Support `--staged` to pull only staged changes from source
-- Verify same-repository before operating
+- Support `--staged` to pull only staged changes from source, even into non-git directories
+- Verify same-repository before operating (when target is a git repo)
 - Preserve git's native conflict resolution where possible
 
 **Non-Goals:**
@@ -51,17 +51,28 @@ Performance: proportional to divergence depth. Recent divergence → few iterati
 
 ### 4. Source resolution order
 
-1. Worktree folder name in current project (`$root/<name>`, must be registered worktree)
+1. Worktree folder name in current project (`$root/<name>`, must be registered worktree) — only when target is inside a wt project
 2. Filesystem path (must be a git repository — worktree or standalone)
 3. Neither → die
 
-Folder name first since that's the common case within a wt project.
+Folder name first since that's the common case within a wt project. When target is a plain git repo or non-git directory, skip step 1.
 
-### 5. Dirty target handling
+### 5. Target flexibility
+
+`pull` does not require a wt project as target:
+
+- **Default mode**: target must be a git repository (needs merge-base or merge --squash). Verify same-repo via root commits.
+- **`--staged` mode**: target can be any directory. If target is a git repo, verify same-repo. If not, skip verification and apply patch directly (`git apply` works outside repos).
+
+Detection: attempt `git rev-parse --git-dir` in cwd. Success → git repo target. Failure → only `--staged` allowed.
+
+Wt project detection (for folder-name source resolution): attempt `find_project_root`. Failure → skip folder-name resolution, path-only.
+
+### 6. Dirty target handling
 
 If target worktree has uncommitted changes: warn and prompt for confirmation. If user proceeds, let `git apply` / `git merge --squash` fail naturally on overlap. No preemptive blocking.
 
-### 6. Error and conflict handling
+### 7. Error and conflict handling
 
 - `git merge --squash` conflicts: git leaves conflict markers in files. Show message, exit non-zero. User resolves manually.
 - `git apply` failures: show git's error output. Atomic — no partial application.
