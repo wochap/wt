@@ -7,18 +7,39 @@ Switch to or create worktrees for branches, commits, or the default branch.
 ## Requirements
 
 ### Requirement: Switch to Default Branch
-The system SHALL switch to the default branch worktree when no arguments provided. Creation messages SHALL include color styling.
+The system SHALL switch to the default branch worktree when no arguments are provided. The default branch SHALL be the configured `default_branch` when present, otherwise it SHALL use automatic default-branch detection. Creation messages SHALL include color styling.
 
-#### Scenario: Default worktree exists
-- **WHEN** user runs `wt switch` with no arguments
-- **THEN** system finds existing worktree for default branch
-- **THEN** system prints worktree path to stdout (no color)
+#### Scenario: Configured default worktree exists
+- **WHEN** user runs `wt switch` with no arguments and `default_branch` is configured
+- **THEN** system finds the existing worktree for the configured branch
+- **THEN** system prints the worktree path to stdout with no color
+
+#### Scenario: Automatically detected default worktree exists
+- **WHEN** user runs `wt switch` with no arguments and `default_branch` is not configured
+- **THEN** system finds the existing worktree for the automatically detected default branch
+- **THEN** system prints the worktree path to stdout with no color
 
 #### Scenario: Default worktree missing
-- **WHEN** user runs `wt switch` and default worktree doesn't exist
-- **THEN** system creates worktree at `<root>/<default-branch>/`
-- **THEN** system prints creation message to stderr with branch name in cyan and directory name in green
-- **THEN** system prints worktree path to stdout
+- **WHEN** user runs `wt switch` and the resolved default worktree does not exist
+- **THEN** system creates a worktree at `<root>/<default-branch>/`
+- **THEN** system prints a creation message to stderr with the branch name in cyan and directory name in green
+- **THEN** system runs configured post-create actions
+- **THEN** on success system prints the worktree path to stdout
+
+### Requirement: Invoke Post-Create Hook for Switch Creations
+The system SHALL invoke the configured post-create hook exactly once after each successful worktree creation performed by `wt switch`, including new branches, local or remote branch worktrees, detached worktrees, named detached worktrees, and a missing default worktree.
+
+#### Scenario: New branch worktree created
+- **WHEN** `wt switch -b <branch>` creates a worktree
+- **THEN** the system invokes `post_create` after `git worktree add` succeeds
+
+#### Scenario: Existing ref needs a worktree
+- **WHEN** `wt switch <ref>` creates an attached or detached worktree
+- **THEN** the system invokes `post_create` after `git worktree add` succeeds
+
+#### Scenario: Git worktree creation fails
+- **WHEN** `git worktree add` fails
+- **THEN** the system does not invoke `post_create`
 
 ### Requirement: Switch to Ref
 The system SHALL switch to a worktree for the given ref, creating one if needed. Creation messages SHALL include color styling.
