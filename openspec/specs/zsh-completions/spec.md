@@ -21,19 +21,19 @@ The system SHALL complete flags for `wt switch`.
 - **THEN** zsh suggests: `-b`
 
 ### Requirement: Switch Branch Completion
-The system SHALL complete branch names for `wt switch`.
+The system SHALL complete branch names and commits for `wt switch`, logically separated into distinct visual groups.
 
 #### Scenario: Complete local branches
 - **WHEN** user types `wt switch <TAB>` inside a wt project
-- **THEN** zsh suggests local branch names from `git branch`
+- **THEN** zsh suggests local branch names from `git branch` under the `-- local branch --` group
 
 #### Scenario: Complete remote branches
 - **WHEN** user types `wt switch <TAB>` inside a wt project
-- **THEN** zsh suggests remote branch names from `git branch -r`
+- **THEN** zsh suggests remote branch names from `git branch -r` under the `-- remote branch --` group
 
 #### Scenario: Complete commit hashes
 - **WHEN** user types `wt switch <TAB>` inside a wt project
-- **THEN** zsh suggests commit hashes
+- **THEN** zsh suggests commit hashes under the `-- commit --` group
 
 ### Requirement: Remove Flag Completion
 The system SHALL complete flags for `wt rm`.
