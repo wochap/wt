@@ -101,6 +101,6 @@ The system SHALL not error when completions are triggered outside a wt project.
 The system SHALL provide a completion file loadable by zsh.
 
 #### Scenario: Source completion file
-- **WHEN** user sources `wt.zsh` or places it in `$fpath`
+- **WHEN** user sources `wt.completions.zsh` or places it in `$fpath`
 - **THEN** `compdef _wt wt` is registered
 - **THEN** tab-completion works for wt commands

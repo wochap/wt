@@ -391,7 +391,7 @@ Dir naming:
   -b branch        → {branch}
 
 Setup:
-  source /path/to/wt.sh in .bashrc/.zshrc for cd integration
+  source /path/to/wt.plugin.sh in .bashrc/.zshrc for cd integration
 EOF
 }
 

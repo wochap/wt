@@ -23,7 +23,7 @@ git clone <repository-url> wt-cli
 cd wt-cli
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/wt"
 install -m 755 wt "$HOME/.local/bin/wt"
-install -m 644 wt.sh "$HOME/.local/share/wt/wt.sh"
+install -m 644 wt.plugin.sh "$HOME/.local/share/wt/wt.plugin.sh"
 ```
 
 Make sure `$HOME/.local/bin` is on your `PATH`. Then enable shell integration,
@@ -32,20 +32,20 @@ which lets commands such as `wt switch` change your current directory.
 For Bash, add this to `~/.bashrc`:
 
 ```bash
-source "$HOME/.local/share/wt/wt.sh"
+source "$HOME/.local/share/wt/wt.plugin.sh"
 ```
 
 For Zsh, add the same line to `~/.zshrc`. To enable Zsh completions, also copy
 and load the completion file after `compinit`:
 
 ```bash
-install -m 644 wt.zsh "$HOME/.local/share/wt/wt.zsh"
+install -m 644 wt.completions.zsh "$HOME/.local/share/wt/wt.completions.zsh"
 ```
 
 ```zsh
 autoload -Uz compinit && compinit
-source "$HOME/.local/share/wt/wt.sh"
-source "$HOME/.local/share/wt/wt.zsh"
+source "$HOME/.local/share/wt/wt.plugin.sh"
+source "$HOME/.local/share/wt/wt.completions.zsh"
 ```
 
 Restart your shell or source its configuration file, then verify the install:

@@ -1,6 +1,6 @@
 # wt — git worktree manager shell integration
 # source this in .bashrc / .zshrc:
-#   source /path/to/wt.sh
+#   source /path/to/wt.plugin.sh
 
 wt() {
   case "${1:-}" in

@@ -60,6 +60,6 @@ The system SHALL pass through all other commands to the wt binary.
 The system SHALL provide instructions for loading the shell function.
 
 #### Scenario: Setup instructions
-- **WHEN** user reads wt.sh
+- **WHEN** user reads wt.plugin.sh
 - **THEN** file contains comment: `# source this in .bashrc / .zshrc`
-- **THEN** user can `source /path/to/wt.sh` to enable integration
+- **THEN** user can `source /path/to/wt.plugin.sh` to enable integration
