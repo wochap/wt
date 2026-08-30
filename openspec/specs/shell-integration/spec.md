@@ -20,12 +20,13 @@ The system SHALL automatically cd into the worktree after successful switch or c
 - **THEN** shell cd's into that directory
 
 ### Requirement: Auto-cd After Remove Current
-The system SHALL cd to default worktree when current directory is removed.
+The system SHALL cd to default worktree when current directory is removed. The fallback path SHALL be resolved before the worktree is removed.
 
 #### Scenario: Remove current worktree
 - **WHEN** user runs `wt rm <name>` on current worktree
+- **THEN** shell resolves default worktree path via `wt switch` before removal
 - **THEN** after removal, `$PWD` no longer exists
-- **THEN** shell cd's to default worktree via `wt switch`
+- **THEN** shell cd's to the pre-resolved default worktree path
 
 #### Scenario: Remove other worktree
 - **WHEN** user runs `wt rm <name>` on non-current worktree
