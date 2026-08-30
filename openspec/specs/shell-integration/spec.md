@@ -1,0 +1,52 @@
+# Shell Integration
+
+## Purpose
+
+Provide shell function wrapper for automatic directory switching after wt commands.
+
+## Requirements
+
+### Requirement: Auto-cd on Switch/Clone
+The system SHALL automatically cd into the worktree after successful switch or clone.
+
+#### Scenario: Switch with shell wrapper
+- **WHEN** user runs `wt switch <ref>` with shell function loaded
+- **THEN** shell captures stdout (worktree path)
+- **THEN** shell cd's into that directory
+
+#### Scenario: Clone with shell wrapper
+- **WHEN** user runs `wt clone <url>` with shell function loaded
+- **THEN** shell captures stdout (default worktree path)
+- **THEN** shell cd's into that directory
+
+### Requirement: Auto-cd After Remove Current
+The system SHALL cd to default worktree when current directory is removed.
+
+#### Scenario: Remove current worktree
+- **WHEN** user runs `wt rm <name>` on current worktree
+- **THEN** after removal, `$PWD` no longer exists
+- **THEN** shell cd's to default worktree via `wt switch`
+
+#### Scenario: Remove other worktree
+- **WHEN** user runs `wt rm <name>` on non-current worktree
+- **THEN** shell does not change directory
+
+### Requirement: Passthrough for Other Commands
+The system SHALL pass through all other commands to the wt binary.
+
+#### Scenario: List command
+- **WHEN** user runs `wt list` with shell function loaded
+- **THEN** shell calls `command wt list` directly
+- **THEN** no cd occurs
+
+#### Scenario: Help command
+- **WHEN** user runs `wt help` with shell function loaded
+- **THEN** shell calls `command wt help` directly
+
+### Requirement: Shell Setup
+The system SHALL provide instructions for loading the shell function.
+
+#### Scenario: Setup instructions
+- **WHEN** user reads wt.sh
+- **THEN** file contains comment: `# source this in .bashrc / .zshrc`
+- **THEN** user can `source /path/to/wt.sh` to enable integration
