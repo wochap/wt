@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-die() { echo "error: $*" >&2; exit 1; }
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
 
 # ── Discovery ──────────────────────────────────────────────────────────
 
@@ -27,21 +30,26 @@ find_project_root() {
 get_default_branch() {
   local git_dir="$1"
   if git -C "$git_dir" rev-parse --verify refs/heads/main &>/dev/null; then
-    echo "main"; return 0
+    echo "main"
+    return 0
   fi
   if git -C "$git_dir" rev-parse --verify refs/heads/master &>/dev/null; then
-    echo "master"; return 0
+    echo "master"
+    return 0
   fi
   local remote_head
   remote_head=$(git -C "$git_dir" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null) || true
   if [[ -n "$remote_head" ]]; then
-    echo "${remote_head#refs/remotes/origin/}"; return 0
+    echo "${remote_head#refs/remotes/origin/}"
+    return 0
   fi
   if git -C "$git_dir" rev-parse --verify refs/remotes/origin/main &>/dev/null; then
-    echo "main"; return 0
+    echo "main"
+    return 0
   fi
   if git -C "$git_dir" rev-parse --verify refs/remotes/origin/master &>/dev/null; then
-    echo "master"; return 0
+    echo "master"
+    return 0
   fi
   echo "error: cannot detect default branch" >&2
   return 1
@@ -63,21 +71,21 @@ resolve_ref() {
 make_dir_name() {
   local ref_type="$1" ref="$2" name="$3" git_dir="$4"
   case "$ref_type" in
-    local-branch|remote-branch)
-      local flat="${ref//\//-}"
-      if [[ -n "$name" ]]; then
-        echo "${flat}-${name}"
-      else
-        echo "$flat"
-      fi
-      ;;
-    commit)
-      if [[ -n "$name" ]]; then
-        echo "$name"
-      else
-        git -C "$git_dir" rev-parse --short=8 "$ref"
-      fi
-      ;;
+  local-branch | remote-branch)
+    local flat="${ref//\//-}"
+    if [[ -n "$name" ]]; then
+      echo "${flat}-${name}"
+    else
+      echo "$flat"
+    fi
+    ;;
+  commit)
+    if [[ -n "$name" ]]; then
+      echo "$name"
+    else
+      git -C "$git_dir" rev-parse --short=8 "$ref"
+    fi
+    ;;
   esac
 }
 
@@ -87,17 +95,17 @@ list_worktrees() {
   local cur_path="" cur_head="" cur_branch="" cur_bare=0 cur_detached=0
   while IFS= read -r line; do
     case "$line" in
-      "worktree "*) cur_path="${line#worktree }" ;;
-      "HEAD "*)     cur_head="${line#HEAD }" ;;
-      "branch "*)   cur_branch="${line#branch refs/heads/}" ;;
-      "bare")       cur_bare=1 ;;
-      "detached")   cur_detached=1 ;;
-      "")
-        if [[ $cur_bare -eq 0 && -n "$cur_path" ]]; then
-          printf '%s|%s|%s|%d\n' "$cur_path" "$cur_head" "$cur_branch" "$cur_detached"
-        fi
-        cur_path="" cur_head="" cur_branch="" cur_bare=0 cur_detached=0
-        ;;
+    "worktree "*) cur_path="${line#worktree }" ;;
+    "HEAD "*) cur_head="${line#HEAD }" ;;
+    "branch "*) cur_branch="${line#branch refs/heads/}" ;;
+    "bare") cur_bare=1 ;;
+    "detached") cur_detached=1 ;;
+    "")
+      if [[ $cur_bare -eq 0 && -n "$cur_path" ]]; then
+        printf '%s|%s|%s|%d\n' "$cur_path" "$cur_head" "$cur_branch" "$cur_detached"
+      fi
+      cur_path="" cur_head="" cur_branch="" cur_bare=0 cur_detached=0
+      ;;
     esac
   done < <(git -C "$git_dir" worktree list --porcelain)
   if [[ $cur_bare -eq 0 && -n "$cur_path" ]]; then
@@ -113,10 +121,18 @@ find_worktree_for_ref() {
   fi
   while IFS='|' read -r path head branch detached; do
     case "$ref_type" in
-      local-branch|remote-branch)
-        [[ "$branch" == "$ref" ]] && { echo "$path"; return 0; } ;;
-      commit)
-        [[ "$head" == "$match_sha" ]] && { echo "$path"; return 0; } ;;
+    local-branch | remote-branch)
+      [[ "$branch" == "$ref" ]] && {
+        echo "$path"
+        return 0
+      }
+      ;;
+    commit)
+      [[ "$head" == "$match_sha" ]] && {
+        echo "$path"
+        return 0
+      }
+      ;;
     esac
   done < <(list_worktrees "$git_dir")
   return 1
@@ -178,8 +194,8 @@ cmd_clone() {
   local default_branch
   default_branch=$(get_default_branch "$git_dir") || die "cannot detect default branch"
 
-  git -C "$git_dir" worktree add "$abs_dir/$default_branch" "$default_branch" \
-    || die "failed to create default worktree"
+  git -C "$git_dir" worktree add "$abs_dir/$default_branch" "$default_branch" ||
+    die "failed to create default worktree"
 
   echo "Cloned into $dir/" >&2
   echo "  .git/   (bare)" >&2
@@ -214,8 +230,8 @@ cmd_switch() {
       die "directory '$dir_name' already exists"
     fi
 
-    git -C "$git_dir" worktree add -b "$branch" "$root/$dir_name" "$from" \
-      || die "failed to create worktree"
+    git -C "$git_dir" worktree add -b "$branch" "$root/$dir_name" "$from" ||
+      die "failed to create worktree"
     local short_from
     short_from=$(git -C "$git_dir" rev-parse --short=8 "$from" 2>/dev/null) || short_from="$from"
     echo "Created worktree: $dir_name (new branch: $branch from $short_from)" >&2
@@ -259,8 +275,8 @@ cmd_switch() {
 
   # create worktree
   if [[ -n "$name" ]]; then
-    git -C "$git_dir" worktree add --detach "$root/$dir_name" "$ref" \
-      || die "failed to create worktree"
+    git -C "$git_dir" worktree add --detach "$root/$dir_name" "$ref" ||
+      die "failed to create worktree"
     if [[ "$ref_type" == "commit" ]]; then
       local short
       short=$(git -C "$git_dir" rev-parse --short=8 "$ref")
@@ -269,12 +285,12 @@ cmd_switch() {
       echo "Created worktree: $dir_name (detached at $ref HEAD)" >&2
     fi
   elif [[ "$ref_type" == "commit" ]]; then
-    git -C "$git_dir" worktree add --detach "$root/$dir_name" "$ref" \
-      || die "failed to create worktree"
+    git -C "$git_dir" worktree add --detach "$root/$dir_name" "$ref" ||
+      die "failed to create worktree"
     echo "Created worktree: $dir_name (detached)" >&2
   else
-    git -C "$git_dir" worktree add "$root/$dir_name" "$ref" \
-      || die "failed to create worktree"
+    git -C "$git_dir" worktree add "$root/$dir_name" "$ref" ||
+      die "failed to create worktree"
     echo "Created worktree: $dir_name (branch: $ref)" >&2
   fi
 
@@ -312,10 +328,10 @@ cmd_list() {
       p="${wt_paths[$i]}"
       log_line=$(git -C "$p" log -1 --format='%h%x09%ar%x09%s' 2>/dev/null) || log_line=$'\t\t'
       status_line=$(git -C "$p" status --porcelain 2>/dev/null | head -1) || status_line=""
-      diff_stat=$(git -C "$p" diff --numstat HEAD 2>/dev/null \
-        | awk '{a+=$1;b+=$2}END{if(a+b>0)printf "+%d-%d",a,b}') || diff_stat=""
+      diff_stat=$(git -C "$p" diff --numstat HEAD 2>/dev/null |
+        awk '{a+=$1;b+=$2}END{if(a+b>0)printf "+%d-%d",a,b}') || diff_stat=""
       printf '%s\t%s\t%s\n' "$log_line" "$status_line" "$diff_stat"
-    ) > "$tmpdir/$i" &
+    ) >"$tmpdir/$i" &
   done
   wait
 
@@ -326,7 +342,7 @@ cmd_list() {
   local -a gutters=() branches=() statuses=() diffs=() paths=() commits=() ages=() messages=()
 
   for i in "${!wt_paths[@]}"; do
-    IFS=$'\t' read -r commit age message status diff_stat < "$tmpdir/$i"
+    IFS=$'\t' read -r commit age message status diff_stat <"$tmpdir/$i"
 
     # gutter
     local real_wt
@@ -369,12 +385,12 @@ cmd_list() {
   # phase 4: compute widths
   local w_br=6 w_st=6 w_df=5 w_pa=4 w_co=6 w_ag=3
   for i in "${!branches[@]}"; do
-    (( ${#branches[$i]} > w_br )) && w_br=${#branches[$i]}
-    (( ${#statuses[$i]} > w_st )) && w_st=${#statuses[$i]}
-    (( ${#diffs[$i]} > w_df )) && w_df=${#diffs[$i]}
-    (( ${#paths[$i]} > w_pa )) && w_pa=${#paths[$i]}
-    (( ${#commits[$i]} > w_co )) && w_co=${#commits[$i]}
-    (( ${#ages[$i]} > w_ag )) && w_ag=${#ages[$i]}
+    ((${#branches[$i]} > w_br)) && w_br=${#branches[$i]}
+    ((${#statuses[$i]} > w_st)) && w_st=${#statuses[$i]}
+    ((${#diffs[$i]} > w_df)) && w_df=${#diffs[$i]}
+    ((${#paths[$i]} > w_pa)) && w_pa=${#paths[$i]}
+    ((${#commits[$i]} > w_co)) && w_co=${#commits[$i]}
+    ((${#ages[$i]} > w_ag)) && w_ag=${#ages[$i]}
   done
 
   # phase 5: render
@@ -395,7 +411,7 @@ cmd_list() {
   done
 
   echo ""
-  echo "○ $count worktree$( [[ $count -ne 1 ]] && echo s)"
+  echo "○ $count worktree$([[ $count -ne 1 ]] && echo s)"
 }
 
 cmd_rm() {
@@ -406,10 +422,10 @@ cmd_rm() {
   local dir_name="" remote=0 force=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --remote) remote=1 ;;
-      --force)  force=1 ;;
-      -*)       die "unknown option: $1" ;;
-      *)        dir_name="$1" ;;
+    --remote) remote=1 ;;
+    --force) force=1 ;;
+    -*) die "unknown option: $1" ;;
+    *) dir_name="$1" ;;
     esac
     shift
   done
@@ -468,8 +484,8 @@ cmd_rm() {
   # remove
   local rm_flags=()
   [[ $force -eq 1 ]] && rm_flags+=(--force)
-  git -C "$git_dir" worktree remove "${rm_flags[@]}" "$wt_path" \
-    || die "failed to remove worktree"
+  git -C "$git_dir" worktree remove "${rm_flags[@]}" "$wt_path" ||
+    die "failed to remove worktree"
   git -C "$git_dir" worktree prune
 
   echo "Removed worktree: $dir_name" >&2
@@ -479,8 +495,8 @@ cmd_rm() {
     echo "Deleted branch: $wt_branch" >&2
 
     if [[ $remote -eq 1 ]]; then
-      git -C "$git_dir" push origin --delete "$wt_branch" \
-        || echo "warning: failed to delete remote branch" >&2
+      git -C "$git_dir" push origin --delete "$wt_branch" ||
+        echo "warning: failed to delete remote branch" >&2
       echo "Deleted remote branch: origin/$wt_branch" >&2
     fi
   fi
@@ -492,12 +508,12 @@ main() {
   local cmd="${1:-help}"
   shift 2>/dev/null || true
   case "$cmd" in
-    clone)        cmd_clone "$@" ;;
-    switch)       cmd_switch "$@" ;;
-    list)         cmd_list "$@" ;;
-    rm)           cmd_rm "$@" ;;
-    help|--help|-h) cmd_help ;;
-    *)            die "unknown command: $cmd (see: wt help)" ;;
+  clone) cmd_clone "$@" ;;
+  switch) cmd_switch "$@" ;;
+  list) cmd_list "$@" ;;
+  rm) cmd_rm "$@" ;;
+  help | --help | -h) cmd_help ;;
+  *) die "unknown command: $cmd (see: wt help)" ;;
   esac
 }
 
