@@ -57,11 +57,38 @@ The system SHALL complete flags for `wt pull`.
 - **THEN** zsh suggests: `--staged`
 
 ### Requirement: Pull Source Completion
-The system SHALL complete worktree directory names for `wt pull`.
+The system SHALL complete worktree directory names and filesystem paths for `wt pull`.
 
 #### Scenario: Complete worktree names for pull
 - **WHEN** user types `wt pull <TAB>` inside a wt project
 - **THEN** zsh suggests worktree directory names (relative to project root)
+
+#### Scenario: Complete filesystem paths for pull
+- **WHEN** user types `wt pull <TAB>`
+- **THEN** zsh also suggests filesystem directory paths via standard path completion
+
+#### Scenario: Complete paths outside wt project
+- **WHEN** user types `wt pull <TAB>` outside a wt project
+- **THEN** zsh suggests filesystem directory paths
+
+### Requirement: Flags-Last Completion Ordering
+The system SHALL only offer flag completions after at least one positional argument has been provided. Before any positional argument, only value completions (branches, paths, worktree names) SHALL appear.
+
+#### Scenario: No flags before positional
+- **WHEN** user types `wt switch <TAB>` with no prior positional
+- **THEN** zsh suggests branches and commits only (no `-b`)
+
+#### Scenario: Flags after positional
+- **WHEN** user types `wt switch <branch> <TAB>`
+- **THEN** zsh suggests `-b` flag only
+
+#### Scenario: Pull flags after source
+- **WHEN** user types `wt pull <source> <TAB>`
+- **THEN** zsh suggests `--staged` only
+
+#### Scenario: Rm flags after name
+- **WHEN** user types `wt rm <name> <TAB>`
+- **THEN** zsh suggests `--force` and `--remote`
 
 ### Requirement: Graceful Degradation Outside wt Project
 The system SHALL not error when completions are triggered outside a wt project.

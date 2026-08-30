@@ -48,7 +48,7 @@ The system SHALL switch to a worktree for the given ref, creating one if needed.
 - **THEN** system prints creation message to stderr with directory name in green
 
 ### Requirement: Create New Branch
-The system SHALL create a new branch and worktree with `-b` flag. Creation messages SHALL include color styling.
+The system SHALL create a new branch and worktree with `-b` flag. The `-b` flag SHALL be recognized in any argument position. Creation messages SHALL include color styling.
 
 #### Scenario: Create new branch from HEAD
 - **WHEN** user runs `wt switch -b <branch>`
@@ -56,9 +56,21 @@ The system SHALL create a new branch and worktree with `-b` flag. Creation messa
 - **THEN** system creates worktree at `<root>/<branch>/`
 - **THEN** system prints creation message to stderr with branch name in cyan and directory name in green
 
+#### Scenario: Create new branch with flag after branch name
+- **WHEN** user runs `wt switch <branch> -b`
+- **THEN** system creates new branch from HEAD (same behavior as `wt switch -b <branch>`)
+- **THEN** system creates worktree at `<root>/<branch>/`
+- **THEN** system prints creation message to stderr with branch name in cyan and directory name in green
+
 #### Scenario: Create new branch from specific ref
 - **WHEN** user runs `wt switch -b <branch> <from>`
 - **THEN** system creates new branch from `<from>`
+- **THEN** system creates worktree at `<root>/<branch>/`
+- **THEN** system prints creation message to stderr with branch name in cyan, directory name in green, and source ref in yellow
+
+#### Scenario: Create new branch from specific ref with flag after branch name
+- **WHEN** user runs `wt switch <branch> -b <from>`
+- **THEN** system creates new branch from `<from>` (same behavior as `wt switch -b <branch> <from>`)
 - **THEN** system creates worktree at `<root>/<branch>/`
 - **THEN** system prints creation message to stderr with branch name in cyan, directory name in green, and source ref in yellow
 
