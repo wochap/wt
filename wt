@@ -60,8 +60,50 @@ find_project_root() {
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
+WT_CONFIG=""
+
+load_project_config() {
+  local root="$1" config="$1/wt.json"
+  WT_CONFIG=""
+  [[ -f "$config" ]] || return 0
+  command -v jq >/dev/null 2>&1 || {
+    echo "error: jq is required to read $config" >&2
+    return 1
+  }
+  jq -e '
+    def relpath: type == "string" and length > 0 and
+      (startswith("/") | not) and (split("/") | all(. != ".."));
+    type == "object" and
+    (.default_branch? | . == null or (type == "string" and length > 0)) and
+    (.hooks? | . == null or type == "object") and
+    (.hooks.post_create? | . == null or type == "array") and
+    all(.hooks.post_create[]?;
+      type == "object" and
+      if .type == "copy" or .type == "symlink" then
+        (.from | relpath) and (.to? | . == null or relpath)
+      elif .type == "command" then
+        (.command | type == "string" and length > 0) and
+        (.work_dir? | . == null or relpath) and
+        (.env? | . == null or
+          (type == "object" and all(to_entries[]; .value | type == "string")))
+      else false end)
+  ' "$config" >/dev/null 2>&1 || {
+    echo "error: invalid wt.json configuration" >&2
+    return 1
+  }
+  WT_CONFIG="$config"
+}
+
 get_default_branch() {
   local git_dir="$1"
+  if [[ -n "$WT_CONFIG" ]]; then
+    local configured
+    configured=$(jq -r '.default_branch // empty' "$WT_CONFIG") || return 1
+    if [[ -n "$configured" ]]; then
+      echo "$configured"
+      return 0
+    fi
+  fi
   if git -C "$git_dir" rev-parse --verify refs/heads/main &>/dev/null; then
     echo "main"
     return 0
@@ -177,6 +219,93 @@ find_worktree_by_path() {
     [[ "$path" == "$target" ]] && return 0
   done < <(list_worktrees "$git_dir")
   return 1
+}
+
+find_worktree_for_branch() {
+  local git_dir="$1" branch="$2"
+  find_worktree_for_ref "$git_dir" "$branch" local-branch
+}
+
+run_post_create_hooks() {
+  local root="$1" git_dir="$2" new_worktree="$3" default_branch="$4"
+  [[ -n "$WT_CONFIG" ]] || return 0
+
+  local action_count
+  action_count=$(jq '.hooks.post_create // [] | length' "$WT_CONFIG") || return 1
+  ((action_count > 0)) || return 0
+
+  local default_worktree="" action index type from to source destination parent target work_dir hook_command key
+  local -a environment=()
+  for ((index = 0; index < action_count; index++)); do
+    action=$(jq -c ".hooks.post_create[$index]" "$WT_CONFIG") || return 1
+    type=$(jq -r '.type' <<<"$action") || return 1
+    echo "Running post_create action $((index + 1))/$action_count: $type" >&2
+
+    if [[ "$type" == "copy" || "$type" == "symlink" ]]; then
+      if [[ -z "$default_branch" ]]; then
+        default_branch=$(get_default_branch "$git_dir") || return 1
+      fi
+      if [[ -z "$default_worktree" ]]; then
+        default_worktree=$(find_worktree_for_branch "$git_dir" "$default_branch") || {
+          echo "error: default branch worktree '$default_branch' is required for $type action" >&2
+          return 1
+        }
+      fi
+      if [[ "$new_worktree" == "$default_worktree" ]]; then
+        echo "Skipping $type action: default worktree is both source and destination" >&2
+        continue
+      fi
+      from=$(jq -r '.from' <<<"$action") || return 1
+      to=$(jq -r '.to // .from' <<<"$action") || return 1
+      source="$default_worktree/$from"
+      destination="$new_worktree/$to"
+      [[ -e "$source" || -L "$source" ]] || {
+        echo "error: $type source does not exist: $from" >&2
+        return 1
+      }
+      [[ ! -e "$destination" && ! -L "$destination" ]] || {
+        echo "error: $type destination already exists: $to" >&2
+        return 1
+      }
+      parent=$(dirname "$destination")
+      mkdir -p "$parent" || {
+        echo "error: cannot create destination directory for: $to" >&2
+        return 1
+      }
+      if [[ "$type" == "copy" ]]; then
+        cp -R -- "$source" "$destination" || {
+          echo "error: failed to copy $from to $to" >&2
+          return 1
+        }
+      else
+        target=$(realpath --relative-to="$parent" "$source") || {
+          echo "error: cannot calculate symlink target for: $from" >&2
+          return 1
+        }
+        ln -s -- "$target" "$destination" || {
+          echo "error: failed to link $from to $to" >&2
+          return 1
+        }
+      fi
+      continue
+    fi
+
+    hook_command=$(jq -r '.command' <<<"$action") || return 1
+    work_dir=$(jq -r '.work_dir // "."' <<<"$action") || return 1
+    [[ -d "$new_worktree/$work_dir" ]] || {
+      echo "error: command work_dir does not exist: $work_dir" >&2
+      return 1
+    }
+    environment=()
+    while IFS= read -r key; do
+      environment+=("$key=$(jq -r --arg key "$key" '.env[$key]' <<<"$action")")
+    done < <(jq -r '.env // {} | keys[]' <<<"$action")
+    # TODO: Present hook stdout and stderr separately with richer action framing.
+    (cd "$new_worktree/$work_dir" && env "${environment[@]}" /bin/sh -c "$hook_command") >&2 || {
+      echo "error: post_create command action $((index + 1)) failed" >&2
+      return 1
+    }
+  done
 }
 
 verify_same_repo() {
@@ -309,6 +438,12 @@ cmd_switch() {
   local root git_dir
   root=$(find_project_root) || return 1
   git_dir="$root/.git"
+  load_project_config "$root" || return 1
+
+  local default_branch=""
+  if [[ -n "$WT_CONFIG" ]]; then
+    default_branch=$(jq -r '.default_branch // empty' "$WT_CONFIG") || return 1
+  fi
 
   local new_branch=0
   local -a positionals=()
@@ -356,14 +491,14 @@ cmd_switch() {
     local short_from
     short_from=$(git -C "$git_dir" rev-parse --short=8 "$from" 2>/dev/null) || short_from="$from"
     echo "Created worktree: ${C_GREEN}${dir_name}${C_RESET} (new branch: ${C_CYAN}${branch}${C_RESET} from ${C_YELLOW}${short_from}${C_RESET})" >&2
+    run_post_create_hooks "$root" "$git_dir" "$root/$dir_name" "$default_branch" || return 1
     echo "$root/$dir_name"
     return 0
   fi
 
   # ── no args: switch to default ──
   if [[ -z "$ref" ]]; then
-    local default_branch
-    default_branch=$(get_default_branch "$git_dir") || return 1
+    [[ -n "$default_branch" ]] || default_branch=$(get_default_branch "$git_dir") || return 1
     ref="$default_branch"
   fi
 
@@ -415,6 +550,7 @@ cmd_switch() {
     echo "Created worktree: ${C_GREEN}${dir_name}${C_RESET} (branch: ${C_CYAN}${ref}${C_RESET})" >&2
   fi
 
+  run_post_create_hooks "$root" "$git_dir" "$root/$dir_name" "$default_branch" || return 1
   echo "$root/$dir_name"
 }
 
