@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Pull
+
+## Purpose
+
+Pull and squash-apply changes from a source worktree or repository into the current git repository or directory.
+
+## Requirements
 
 ### Requirement: Pull changes from a source worktree or repository
 The system SHALL provide a `wt pull <source>` command that squash-applies changes from a source worktree or git repository into the current git repository or directory.
