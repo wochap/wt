@@ -48,19 +48,29 @@ The system SHALL switch to a worktree for the given ref, creating one if needed.
 - **THEN** system prints creation message to stderr with directory name in green
 
 ### Requirement: Create New Branch
-The system SHALL create a new branch and worktree with `-b` flag. The `-b` flag SHALL be recognized in any argument position. Creation messages SHALL include color styling.
+The system SHALL create a new branch and worktree with `-b` flag. The `-b` flag SHALL be recognized in any argument position. When no explicit base is given, the system SHALL resolve the base from the current location: the HEAD of the worktree the user is inside (when run from within a registered worktree), or the bare repository's HEAD — the default branch — (when run outside any worktree). Creation messages SHALL include color styling.
 
-#### Scenario: Create new branch from HEAD
-- **WHEN** user runs `wt switch -b <branch>`
-- **THEN** system creates new branch from HEAD
+#### Scenario: Create new branch from current worktree
+- **WHEN** user runs `wt switch -b <branch>` from inside a registered worktree
+- **THEN** system creates the new branch from that worktree's HEAD
 - **THEN** system creates worktree at `<root>/<branch>/`
-- **THEN** system prints creation message to stderr with branch name in cyan and directory name in green
+- **THEN** system prints creation message to stderr with branch name in cyan, directory name in green, and resolved base ref in yellow
 
 #### Scenario: Create new branch with flag after branch name
-- **WHEN** user runs `wt switch <branch> -b`
-- **THEN** system creates new branch from HEAD (same behavior as `wt switch -b <branch>`)
+- **WHEN** user runs `wt switch <branch> -b` from inside a registered worktree
+- **THEN** system creates new branch from that worktree's HEAD (same behavior as `wt switch -b <branch>`)
 - **THEN** system creates worktree at `<root>/<branch>/`
-- **THEN** system prints creation message to stderr with branch name in cyan and directory name in green
+- **THEN** system prints creation message to stderr with branch name in cyan, directory name in green, and resolved base ref in yellow
+
+#### Scenario: Create new branch from detached worktree
+- **WHEN** user runs `wt switch -b <branch>` from inside a detached worktree
+- **THEN** system creates the new branch from the worktree's HEAD commit
+
+#### Scenario: Create new branch from bare repository HEAD when outside any worktree
+- **WHEN** user runs `wt switch -b <branch>` from the project root or any location not inside a registered worktree
+- **THEN** system creates the new branch from the bare repository's HEAD (the default branch)
+- **THEN** system creates worktree at `<root>/<branch>/`
+- **THEN** system prints creation message to stderr with branch name in cyan, directory name in green, and resolved base ref in yellow
 
 #### Scenario: Create new branch from specific ref
 - **WHEN** user runs `wt switch -b <branch> <from>`
