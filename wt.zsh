@@ -7,6 +7,7 @@ _wt() {
     'switch:Switch to worktree (create if missing)'
     'list:List all worktrees'
     'rm:Remove worktree + branch'
+    'doctor:Repair broken worktree links'
     'help:Show help message'
   )
 
@@ -14,7 +15,7 @@ _wt() {
   local subcmd
   for ((i = 2; i < CURRENT; i++)); do
     case "${words[i]}" in
-    clone | switch | list | rm | help)
+    clone | switch | list | rm | doctor | help)
       subcmd="${words[i]}"
       break
       ;;
@@ -33,7 +34,7 @@ _wt() {
 
   switch)
     # Flags
-    if [[ "$words[CURRENT-1]" == -* ]]; then
+    if [[ "$words[CURRENT - 1]" == -* ]]; then
       return
     fi
 
@@ -136,6 +137,10 @@ _wt() {
     fi
 
     _describe 'flag' flags
+    ;;
+
+  doctor)
+    # No arguments
     ;;
 
   help)
