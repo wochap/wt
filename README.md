@@ -1,7 +1,90 @@
 # wt
 
-`wt` manages sibling Git worktrees around a bare `.git` repository. See `wt help`
-for commands and shell setup.
+`wt` is a small command-line tool for managing Git worktrees as sibling
+directories around a bare `.git` repository. It makes it quick to clone a
+repository into this layout, create or enter worktrees, inspect their status,
+remove them, and move changes between them.
+
+## Requirements
+
+- Bash 4 or newer
+- Git
+- A Unix-like environment (Linux or macOS)
+- `jq` only when a project uses the optional `wt.json` configuration
+- Zsh only if you want the included Zsh completions
+
+## Installation
+
+Clone this repository, install the executable somewhere on your `PATH`, and
+install the shell integration file:
+
+```bash
+git clone <repository-url> wt-cli
+cd wt-cli
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/wt"
+install -m 755 wt "$HOME/.local/bin/wt"
+install -m 644 wt.sh "$HOME/.local/share/wt/wt.sh"
+```
+
+Make sure `$HOME/.local/bin` is on your `PATH`. Then enable shell integration,
+which lets commands such as `wt switch` change your current directory.
+
+For Bash, add this to `~/.bashrc`:
+
+```bash
+source "$HOME/.local/share/wt/wt.sh"
+```
+
+For Zsh, add the same line to `~/.zshrc`. To enable Zsh completions, also copy
+and load the completion file after `compinit`:
+
+```bash
+install -m 644 wt.zsh "$HOME/.local/share/wt/wt.zsh"
+```
+
+```zsh
+autoload -Uz compinit && compinit
+source "$HOME/.local/share/wt/wt.sh"
+source "$HOME/.local/share/wt/wt.zsh"
+```
+
+Restart your shell or source its configuration file, then verify the install:
+
+```bash
+wt help
+```
+
+## Usage
+
+Start by cloning a repository with `wt`:
+
+```bash
+wt clone https://github.com/example/project.git
+```
+
+This creates a bare repository and a worktree for the default branch:
+
+```text
+project/
+├── .git/       # bare repository
+└── main/       # default-branch worktree
+```
+
+From any worktree in that project, common commands include:
+
+```bash
+wt switch feature/login       # create or enter a branch worktree
+wt switch -b feature/new-ui    # create a new branch and worktree
+wt switch                      # return to the default branch worktree
+wt list                        # show all worktrees and their status
+wt rename login-redesign       # rename the current worktree directory
+wt pull feature/login          # squash changes into the current worktree
+wt rm feature-login            # remove a worktree and its local branch
+wt doctor                      # repair broken worktree links
+```
+
+Run `wt help` for the full command summary and available flags. Worktree folder
+names are derived from branch names, with `/` replaced by `-`.
 
 ## Worktree configuration
 
@@ -46,3 +129,14 @@ status and command output go to stderr so successful stdout contains only the
 absolute worktree path. A failed action stops the hook and makes `wt switch`
 fail without printing that path, but the new worktree and branch remain and a
 later switch does not retry the hook automatically.
+
+## Software stack
+
+- **Bash:** CLI implementation and shell integration
+- **Git:** repository, branch, and worktree operations
+- **Zsh:** optional command completion
+- **jq:** optional `wt.json` parsing and validation
+- **Shell scripts:** integration tests
+
+The project has no build step or package manager and does not require a runtime
+beyond the shell and Git.
