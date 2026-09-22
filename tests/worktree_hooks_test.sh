@@ -40,7 +40,7 @@ out=$(cd "$root/main" && "$WT_BIN" switch)
 mkdir "$TEST_TMP/no-jq-bin"
 ln -s "$(command -v git)" "$TEST_TMP/no-jq-bin/git"
 ln -s "$(command -v dirname)" "$TEST_TMP/no-jq-bin/dirname"
-printf '{}\n' >"$root/wt.json"
+printf '{}\n' >"$root/main/wt.json"
 if (cd "$root/main" && PATH="$TEST_TMP/no-jq-bin" "$BASH_BIN" "$WT_BIN" switch -b no-jq >/dev/null 2>"$root/error"); then
   fail "configuration without jq succeeded"
 fi
@@ -48,13 +48,13 @@ assert_contains "$(<"$root/error")" "jq is required"
 [[ ! -d "$root/no-jq" ]] || fail "missing jq created worktree"
 
 # Malformed and semantically invalid configuration fail before mutation.
-printf '{' >"$root/wt.json"
+printf '{' >"$root/main/wt.json"
 if (cd "$root/main" && "$WT_BIN" switch -b malformed >/dev/null 2>"$root/error"); then
   fail "malformed configuration succeeded"
 fi
 assert_contains "$(<"$root/error")" "invalid wt.json"
 [[ ! -d "$root/malformed" ]] || fail "malformed config created worktree"
-printf '{"hooks":{"post_create":[{"type":"copy","from":"../escape"}]}}\n' >"$root/wt.json"
+printf '{"hooks":{"post_create":[{"type":"copy","from":"../escape"}]}}\n' >"$root/main/wt.json"
 if (cd "$root/main" && "$WT_BIN" switch -b escaping >/dev/null 2>"$root/error"); then
   fail "escaping configuration succeeded"
 fi
@@ -63,10 +63,10 @@ fi
 # Configured default branch affects argument-free switching.
 git -C "$root/.git" branch trunk main
 git -C "$root/.git" worktree add -q "$root/unusual-default-path" trunk
-printf '{"default_branch":"trunk"}\n' >"$root/wt.json"
+printf '{"default_branch":"trunk"}\n' >"$root/main/wt.json"
 out=$(cd "$root/main" && "$WT_BIN" switch)
 [[ "$out" == "$root/unusual-default-path" ]] || fail "configured default lookup"
-printf '{"default_branch":"missing"}\n' >"$root/wt.json"
+printf '{"default_branch":"missing"}\n' >"$root/main/wt.json"
 if (cd "$root/main" && "$WT_BIN" switch >/dev/null 2>"$root/error"); then
   fail "missing configured branch succeeded"
 fi
@@ -79,7 +79,7 @@ printf 'secret\n' >"$root/main/.env"
 printf 'shared\n' >"$root/main/.shared"
 mkdir -p "$root/main/cache/child"
 printf 'cached\n' >"$root/main/cache/child/value"
-cat >"$root/wt.json" <<'JSON'
+cat >"$root/main/wt.json" <<'JSON'
 {
   "default_branch": "main",
   "hooks": {"post_create": [
@@ -104,13 +104,13 @@ assert_file "$root/hooked/var/copied/child/value"
 assert_file "$root/hooked/ordered"
 
 # Existing worktrees bypass hooks.
-printf '{"hooks":{"post_create":[{"type":"command","command":"touch should-not-run"}]}}\n' >"$root/wt.json"
+printf '{"hooks":{"post_create":[{"type":"command","command":"touch should-not-run"}]}}\n' >"$root/main/wt.json"
 out=$(cd "$root/main" && "$WT_BIN" switch hooked)
 [[ "$out" == "$root/hooked" && ! -e "$root/hooked/should-not-run" ]] || fail "existing bypass"
 
 # Every remaining creation form invokes hooks: local, remote, commit, and named
 # detached. (-b was exercised above.)
-printf '{"hooks":{"post_create":[{"type":"command","command":"touch lifecycle-ran"}]}}\n' >"$root/wt.json"
+printf '{"hooks":{"post_create":[{"type":"command","command":"touch lifecycle-ran"}]}}\n' >"$root/main/wt.json"
 git -C "$root/.git" branch local-mode main
 (cd "$root/main" && "$WT_BIN" switch local-mode >/dev/null)
 assert_file "$root/local-mode/lifecycle-ran"
@@ -125,7 +125,7 @@ assert_file "$root/$short/lifecycle-ran"
 assert_file "$root/main-snapshot/lifecycle-ran"
 
 # Failure stops later actions, emits no path, retains state, and is not retried.
-cat >"$root/wt.json" <<'JSON'
+cat >"$root/main/wt.json" <<'JSON'
 {"hooks":{"post_create":[
   {"type":"command","command":"touch before-failure"},
   {"type":"command","command":"echo failing; exit 7"},
@@ -143,9 +143,12 @@ out=$(cd "$root/main" && "$WT_BIN" switch retained)
 [[ "$out" == "$root/retained" ]] || fail "retained worktree not switchable"
 
 # Creating the default worktree skips source actions but runs commands.
+# From the project root without a default worktree, the first existing
+# worktree supplies configuration.
 root=$(make_project default-self)
 git -C "$root/.git" worktree remove "$root/main"
-cat >"$root/wt.json" <<'JSON'
+git -C "$root/.git" worktree add -q "$root/other" -b other main
+cat >"$root/other/wt.json" <<'JSON'
 {"default_branch":"main","hooks":{"post_create":[
   {"type":"copy","from":"not-present"},
   {"type":"symlink","from":"not-present"},
@@ -159,17 +162,43 @@ assert_contains "$(<"$root/error")" "Skipping copy"
 
 # Missing sources and existing tracked destinations fail without overwrite.
 root=$(make_project failures)
-printf '{"hooks":{"post_create":[{"type":"copy","from":"missing"}]}}\n' >"$root/wt.json"
+printf '{"hooks":{"post_create":[{"type":"copy","from":"missing"}]}}\n' >"$root/main/wt.json"
 if (cd "$root/main" && "$WT_BIN" switch -b missing-source >/dev/null 2>"$root/error"); then
   fail "missing source succeeded"
 fi
 assert_contains "$(<"$root/error")" "source does not exist"
 printf 'source\n' >"$root/main/local-tracked"
-printf '{"hooks":{"post_create":[{"type":"copy","from":"local-tracked","to":"tracked"}]}}\n' >"$root/wt.json"
+printf '{"hooks":{"post_create":[{"type":"copy","from":"local-tracked","to":"tracked"}]}}\n' >"$root/main/wt.json"
 if (cd "$root/main" && "$WT_BIN" switch -b existing-target >/dev/null 2>"$root/error"); then
   fail "existing destination succeeded"
 fi
 [[ "$(<"$root/existing-target/tracked")" == tracked ]] || fail "destination overwritten"
+
+# Configuration comes from the current worktree, even from a subdirectory.
+root=$(make_project per-worktree)
+git -C "$root/.git" worktree add -q "$root/feature" -b feature main
+printf '{"hooks":{"post_create":[{"type":"command","command":"touch from-main"}]}}\n' >"$root/main/wt.json"
+printf '{"hooks":{"post_create":[{"type":"command","command":"touch from-feature"}]}}\n' >"$root/feature/wt.json"
+(cd "$root/feature/subdir" && "$WT_BIN" switch -b from-feature-wt >/dev/null)
+assert_file "$root/from-feature-wt/from-feature"
+[[ ! -e "$root/from-feature-wt/from-main" ]] || fail "main config used inside feature worktree"
+(cd "$root/main" && "$WT_BIN" switch -b from-main-wt >/dev/null)
+assert_file "$root/from-main-wt/from-main"
+
+# A worktree without wt.json has no configuration, even if others do.
+(cd "$root/from-main-wt" && "$WT_BIN" switch -b unconfigured >/dev/null)
+[[ ! -e "$root/unconfigured/from-main" ]] || fail "config leaked into unconfigured worktree"
+
+# From the project root, the default-branch worktree supplies configuration.
+(cd "$root" && "$WT_BIN" switch -b from-root >/dev/null)
+assert_file "$root/from-root/from-main"
+
+# A legacy project-root wt.json is ignored.
+root=$(make_project legacy)
+printf '{"hooks":{"post_create":[{"type":"command","command":"touch legacy-ran"}]}}\n' >"$root/wt.json"
+(cd "$root/main" && "$WT_BIN" switch -b legacy-cwd >/dev/null)
+(cd "$root" && "$WT_BIN" switch -b legacy-root >/dev/null)
+[[ ! -e "$root/legacy-cwd/legacy-ran" && ! -e "$root/legacy-root/legacy-ran" ]] || fail "legacy root config used"
 
 # Clone creates its initial worktree without consulting a pre-existing root config.
 clone_seed="$TEST_TMP/clone-seed"

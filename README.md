@@ -88,8 +88,18 @@ names are derived from branch names, with `/` replaced by `-`.
 
 ## Worktree configuration
 
-An optional `wt.json` in the project root can select the default branch and
-initialize every worktree newly created by `wt switch`:
+An optional `wt.json` committed in the repository can select the default branch
+and initialize every worktree newly created by `wt switch`. Each worktree carries
+its own copy, so configuration is versioned with the branch. `wt` reads it from:
+
+1. The worktree containing the current directory (a missing file means no
+   configuration).
+2. From outside any worktree, such as the project root: the default-branch
+   (`main`/`master`) worktree's `wt.json`, otherwise the first existing
+   worktree's.
+
+A `wt.json` next to the bare `.git` directory is ignored. To migrate, move it
+into the default branch and commit it.
 
 ```json
 {

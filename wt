@@ -62,9 +62,38 @@ find_project_root() {
 
 WT_CONFIG=""
 
+# Worktree whose wt.json applies: the current worktree when inside one,
+# otherwise the default-branch worktree, otherwise the first existing worktree.
+find_config_worktree() {
+  local git_dir="$1" top branch path
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
+  if [[ -n "$top" ]]; then
+    top=$(cd "$top" && pwd -P)
+    if find_worktree_by_path "$git_dir" "$top"; then
+      echo "$top"
+      return 0
+    fi
+  fi
+  if branch=$(get_default_branch "$git_dir" 2>/dev/null) &&
+    path=$(find_worktree_for_branch "$git_dir" "$branch") &&
+    [[ -f "$path/wt.json" ]]; then
+    echo "$path"
+    return 0
+  fi
+  while IFS='|' read -r path _ _ _; do
+    if [[ -d "$path" ]]; then
+      echo "$path"
+      return 0
+    fi
+  done < <(list_worktrees "$git_dir")
+  return 1
+}
+
 load_project_config() {
-  local root="$1" config="$1/wt.json"
+  local git_dir="$1" worktree config
   WT_CONFIG=""
+  worktree=$(find_config_worktree "$git_dir") || return 0
+  config="$worktree/wt.json"
   [[ -f "$config" ]] || return 0
   command -v jq >/dev/null 2>&1 || {
     echo "error: jq is required to read $config" >&2
@@ -88,7 +117,7 @@ load_project_config() {
           (type == "object" and all(to_entries[]; .value | type == "string")))
       else false end)
   ' "$config" >/dev/null 2>&1 || {
-    echo "error: invalid wt.json configuration" >&2
+    echo "error: invalid wt.json configuration: $config" >&2
     return 1
   }
   WT_CONFIG="$config"
@@ -438,7 +467,7 @@ cmd_switch() {
   local root git_dir
   root=$(find_project_root) || return 1
   git_dir="$root/.git"
-  load_project_config "$root" || return 1
+  load_project_config "$git_dir" || return 1
 
   local default_branch=""
   if [[ -n "$WT_CONFIG" ]]; then
