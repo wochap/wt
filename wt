@@ -390,6 +390,25 @@ resolve_pull_source() {
   die "source not found: $arg (not a worktree name or valid path)"
 }
 
+# Resolve a bundled file next to the real script (repo checkout), then at
+# ../share/wt/ (Nix/installed layout).
+find_data_file() {
+  local file="$1" src="${BASH_SOURCE[0]}" dir
+  while [[ -L "$src" ]]; do
+    dir=$(cd -P "$(dirname "$src")" && pwd)
+    src=$(readlink "$src")
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  dir=$(cd -P "$(dirname "$src")" && pwd)
+  if [[ -f "$dir/$file" ]]; then
+    echo "$dir/$file"
+  elif [[ -f "$dir/../share/wt/$file" ]]; then
+    echo "$dir/../share/wt/$file"
+  else
+    return 1
+  fi
+}
+
 # ── Commands ───────────────────────────────────────────────────────────
 
 cmd_help() {
@@ -406,6 +425,8 @@ Usage:
   wt pull <source> [--staged]       Pull changes from worktree/repo
   wt doctor                         Repair broken worktree links
   wt rename <new-name>              Rename current worktree directory
+  wt init zsh                       Print shell integration (eval it)
+  wt completions zsh                Print zsh completions (eval it)
 
 Options:
   --remote    Also delete remote branch (rm)
@@ -420,9 +441,22 @@ Dir naming:
   -b branch        → {branch}
 
 Setup:
-  source /path/to/wt.plugin.sh in .bashrc/.zshrc for cd integration
+  eval "$(wt init zsh)" in .zshrc for cd integration
+  eval "$(wt completions zsh)" in .zshrc (after compinit) for completions
 EOF
 }
+
+print_data_file() {
+  local usage="$1" shell="${2:-}" file="$3" path
+  [[ -z "$shell" ]] && die "usage: $usage"
+  [[ "$shell" != "zsh" ]] && die "unsupported shell: $shell (only zsh)"
+  path=$(find_data_file "$file") || die "cannot find $file"
+  cat "$path"
+}
+
+cmd_init() { print_data_file "wt init zsh" "${1:-}" wt.plugin.sh; }
+
+cmd_completions() { print_data_file "wt completions zsh" "${1:-}" wt.completions.zsh; }
 
 cmd_clone() {
   local url="${1:-}" dir="${2:-}"
@@ -1014,6 +1048,8 @@ main() {
   pull) cmd_pull "$@" ;;
   doctor) cmd_doctor "$@" ;;
   rename) cmd_rename "$@" ;;
+  init) cmd_init "$@" ;;
+  completions) cmd_completions "$@" ;;
   help | --help | -h) cmd_help ;;
   *) die "unknown command: $cmd (see: wt help)" ;;
   esac

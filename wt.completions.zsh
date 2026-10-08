@@ -10,6 +10,8 @@ _wt() {
     'pull:Pull changes from worktree/repo'
     'doctor:Repair broken worktree links'
     'rename:Rename current worktree directory'
+    'init:Print shell integration'
+    'completions:Print zsh completions'
     'help:Show help message'
   )
 
@@ -17,7 +19,7 @@ _wt() {
   local subcmd subcmd_idx=0
   for ((i = 2; i < CURRENT; i++)); do
     case "${words[i]}" in
-    clone | switch | list | rm | pull | doctor | rename | help)
+    clone | switch | list | rm | pull | doctor | rename | init | completions | help)
       subcmd="${words[i]}"
       subcmd_idx=$i
       break
@@ -198,6 +200,14 @@ _wt() {
 
   rename)
     # No dynamic completions for rename (free-form new name)
+    ;;
+
+  init | completions)
+    if ((CURRENT == subcmd_idx + 1)); then
+      local -a shells
+      shells=('zsh:Z shell')
+      _describe 'shell' shells
+    fi
     ;;
 
   help)

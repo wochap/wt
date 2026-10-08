@@ -48,11 +48,66 @@ source "$HOME/.local/share/wt/wt.plugin.sh"
 source "$HOME/.local/share/wt/wt.completions.zsh"
 ```
 
+Alternatively, if `wt.plugin.sh` and `wt.completions.zsh` sit next to the `wt`
+executable (or in `../share/wt/` relative to it), let `wt` print them. This
+also works with `zsh-defer`:
+
+```zsh
+autoload -Uz compinit && compinit
+eval "$(wt init zsh)"
+eval "$(wt completions zsh)"
+```
+
 Restart your shell or source its configuration file, then verify the install:
 
 ```bash
 wt help
 ```
+
+### Nix
+
+The flake provides `packages.<system>.default` (bin with `git` and `jq` on its
+`PATH`, plus zsh completions), `overlays.default` and a home-manager module.
+
+NixOS (`environment.systemPackages`) gives you `wt` and its completions:
+
+```nix
+{
+  inputs.wt.url = "github:wochap/wt";
+
+  # in a NixOS module:
+  environment.systemPackages = [ inputs.wt.packages.${pkgs.system}.default ];
+}
+```
+
+Without home-manager, load the `cd` integration yourself in `~/.zshrc`:
+
+```zsh
+eval "$(wt init zsh)"
+```
+
+Home-manager also wires the shell integration (requires a home-manager with
+`programs.zsh.initContent`):
+
+```nix
+{
+  imports = [ inputs.wt.homeManagerModules.default ];
+  programs.wt = {
+    enable = true;
+    # zshCompletion.enable = true;     # _wt on fpath
+    # enableZshIntegration = true;     # eval "$(wt init zsh)" in .zshrc
+  };
+}
+```
+
+To build without zsh completions:
+
+```nix
+inputs.wt.packages.${pkgs.system}.default.override { withZshCompletion = false; }
+```
+
+If you skip the packaged completions, `eval "$(wt completions zsh)"` after
+`compinit` loads them instead.
 
 ## Usage
 
