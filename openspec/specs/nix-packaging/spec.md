@@ -34,7 +34,7 @@ The package SHALL accept a `withZshCompletion` argument (default `true`) control
 - **THEN** `bin/wt` and `share/wt` are still present
 
 ### Requirement: Home-Manager Module
-The flake SHALL provide a home-manager module with options `programs.wt.enable`, `programs.wt.package`, `programs.wt.zshCompletion.enable` (default true) and `programs.wt.enableZshIntegration` (default true).
+The flake SHALL provide a home-manager module with options `programs.wt.enable`, `programs.wt.package`, `programs.wt.enableZshCompletion` (default true) and `programs.wt.enableZshIntegration` (default true).
 
 #### Scenario: Enable module
 - **WHEN** a user sets `programs.wt.enable = true`
@@ -42,7 +42,7 @@ The flake SHALL provide a home-manager module with options `programs.wt.enable`,
 - **THEN** `.zshrc` evaluates `wt init zsh`
 
 #### Scenario: Disable completion in module
-- **WHEN** `programs.wt.zshCompletion.enable = false`
+- **WHEN** `programs.wt.enableZshCompletion = false`
 - **THEN** the installed package is built with `withZshCompletion = false`
 
 #### Scenario: Disable integration

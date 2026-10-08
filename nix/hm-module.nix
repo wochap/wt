@@ -5,7 +5,7 @@ let
   cfg = config.programs.wt;
   inherit (lib) mkEnableOption mkOption mkIf types;
   system = pkgs.stdenv.hostPlatform.system;
-  package = cfg.package.override { withZshCompletion = cfg.zshCompletion.enable; };
+  package = cfg.package.override { withZshCompletion = cfg.enableZshCompletion; };
 in
 {
   options.programs.wt = {
@@ -15,7 +15,7 @@ in
       default = self.packages.${system}.wt;
       description = "wt package; must accept `withZshCompletion` via `.override`.";
     };
-    zshCompletion.enable = mkOption {
+    enableZshCompletion = mkOption {
       type = types.bool;
       default = true;
       description = "Install zsh completions (_wt on fpath).";

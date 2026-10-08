@@ -94,7 +94,7 @@ Home-manager also wires the shell integration (requires a home-manager with
   imports = [ inputs.wt.homeManagerModules.default ];
   programs.wt = {
     enable = true;
-    # zshCompletion.enable = true;     # _wt on fpath
+    # enableZshCompletion = true;     # _wt on fpath
     # enableZshIntegration = true;     # eval "$(wt init zsh)" in .zshrc
   };
 }
