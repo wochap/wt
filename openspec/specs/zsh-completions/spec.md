@@ -11,7 +11,11 @@ The system SHALL provide tab-completion for wt subcommands.
 
 #### Scenario: Complete subcommands
 - **WHEN** user types `wt <TAB>`
-- **THEN** zsh suggests: `clone`, `switch`, `list`, `rm`, `pull`, `doctor`, `rename`, `help`
+- **THEN** zsh suggests: `clone`, `switch`, `list`, `rm`, `pull`, `doctor`, `rename`, `init`, `completions`, `help`
+
+#### Scenario: Complete shell argument
+- **WHEN** user types `wt init <TAB>` or `wt completions <TAB>`
+- **THEN** zsh suggests: `zsh`
 
 ### Requirement: Switch Flag Completion
 The system SHALL complete flags for `wt switch`.
@@ -104,3 +108,14 @@ The system SHALL provide a completion file loadable by zsh.
 - **WHEN** user sources `wt.completions.zsh` or places it in `$fpath`
 - **THEN** `compdef _wt wt` is registered
 - **THEN** tab-completion works for wt commands
+
+### Requirement: Completions Subcommand
+The CLI SHALL provide `wt completions zsh`, printing the zsh completion script (`wt.completions.zsh`) to stdout so that `eval "$(wt completions zsh)"` registers `_wt` after `compinit`. The file SHALL be resolved next to the real script, then at `../share/wt/`. Any shell other than `zsh`, or a missing argument, SHALL error with a non-zero exit.
+
+#### Scenario: Eval completions
+- **WHEN** user runs `eval "$(wt completions zsh)"` after compinit
+- **THEN** `wt <TAB>` completes subcommands
+
+#### Scenario: Unsupported shell
+- **WHEN** user runs `wt completions fish`
+- **THEN** wt prints an error to stderr and exits non-zero

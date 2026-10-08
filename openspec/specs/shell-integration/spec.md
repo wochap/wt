@@ -63,3 +63,19 @@ The system SHALL provide instructions for loading the shell function.
 - **WHEN** user reads wt.plugin.sh
 - **THEN** file contains comment: `# source this in .bashrc / .zshrc`
 - **THEN** user can `source /path/to/wt.plugin.sh` to enable integration
+
+### Requirement: Init Subcommand
+The CLI SHALL provide `wt init zsh`, printing the shell plugin (`wt.plugin.sh`) to stdout so that `eval "$(wt init zsh)"` defines the `wt()` wrapper. The file SHALL be resolved next to the real script, then at `../share/wt/`. Any shell other than `zsh`, or a missing argument, SHALL error with a non-zero exit.
+
+#### Scenario: Eval init
+- **WHEN** user runs `eval "$(wt init zsh)"` in zsh
+- **THEN** `wt` is a shell function
+- **THEN** `wt switch <ref>` cd's into the worktree
+
+#### Scenario: Unsupported shell
+- **WHEN** user runs `wt init bash`
+- **THEN** wt prints an error to stderr and exits non-zero
+
+#### Scenario: Passthrough when loaded
+- **WHEN** the shell function is loaded and user runs `wt init zsh`
+- **THEN** the function forwards to `command wt init zsh`
