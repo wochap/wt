@@ -4,6 +4,7 @@ _wt() {
   local -a commands
   commands=(
     'clone:Clone repo as bare + default worktree'
+    'convert:Convert repo to bare + worktrees layout'
     'switch:Switch to worktree (create if missing)'
     'list:List all worktrees'
     'rm:Remove worktree + branch'
@@ -19,7 +20,7 @@ _wt() {
   local subcmd subcmd_idx=0
   for ((i = 2; i < CURRENT; i++)); do
     case "${words[i]}" in
-    clone | switch | list | rm | pull | doctor | rename | init | completions | help)
+    clone | convert | switch | list | rm | pull | doctor | rename | init | completions | help)
       subcmd="${words[i]}"
       subcmd_idx=$i
       break
@@ -35,6 +36,15 @@ _wt() {
   case "$subcmd" in
   clone)
     # No dynamic completions for clone (URL argument)
+    ;;
+
+  convert)
+    local -a flags
+    flags=(
+      '--default:override default branch'
+      '--force:force conversion'
+    )
+    _describe 'flag' flags
     ;;
 
   switch)

@@ -117,6 +117,13 @@ Start by cloning a repository with `wt`:
 wt clone https://github.com/example/project.git
 ```
 
+Or convert an existing Git repository in-place:
+
+```bash
+cd existing-project
+wt convert
+```
+
 This creates a bare repository and a worktree for the default branch:
 
 ```text

@@ -417,6 +417,7 @@ wt — git worktree manager
 
 Usage:
   wt clone <url> [dir]              Clone repo as bare + default worktree
+  wt convert [--default <b>] [--force] Convert repo to bare + worktrees layout
   wt switch                         Switch to default branch worktree
   wt switch <ref> [name]            Switch to worktree (create if missing)
   wt switch -b <branch> [from]      Create new branch + worktree
@@ -429,9 +430,10 @@ Usage:
   wt completions zsh                Print zsh completions (eval it)
 
 Options:
-  --remote    Also delete remote branch (rm)
-  --force     Allow removing dirty worktree (rm)
-  --staged    Pull only staged changes from source (pull)
+  --default <b> Default branch name (convert)
+  --remote      Also delete remote branch (rm)
+  --force       Allow removing dirty worktree (rm) / bypass convert warnings
+  --staged      Pull only staged changes from source (pull)
 
 Dir naming:
   branch           → {branch}              (slashes flattened)
@@ -495,6 +497,262 @@ cmd_clone() {
   echo "  ${C_DIM}.git/${C_RESET}   (bare)" >&2
   echo "  ${C_GREEN}${default_branch}/${C_RESET}   (worktree)" >&2
   echo "$abs_dir/$default_branch"
+}
+
+cmd_convert() {
+  local opt_default="" force=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --default)
+      shift
+      [[ $# -eq 0 ]] && die "--default requires a branch name"
+      opt_default="$1"
+      ;;
+    --default=*)
+      opt_default="${1#*=}"
+      ;;
+    --force)
+      force=1
+      ;;
+    -h | --help)
+      echo "Usage: wt convert [--default <branch>] [--force]"
+      return 0
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected argument: $1"
+      ;;
+    esac
+    shift
+  done
+
+  local git_dir
+  git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "not inside a git repository"
+
+  local is_bare
+  is_bare=$(git rev-parse --is-bare-repository 2>/dev/null) || is_bare="false"
+  if [[ "$is_bare" == "true" ]]; then
+    die "already a bare repository (or wt project)"
+  fi
+
+  local top
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git work tree"
+  top=$(cd "$top" && pwd -P)
+
+  if [[ -f "$top/.git" ]]; then
+    die "cannot convert a linked worktree (must run in the main repository root)"
+  fi
+
+  local common_dir
+  common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || common_dir=""
+  if [[ -n "$common_dir" ]]; then
+    common_dir=$(cd "$common_dir" && pwd -P)
+    local full_git_dir
+    full_git_dir=$(cd "$git_dir" && pwd -P)
+    if [[ "$full_git_dir" != "$common_dir" ]]; then
+      die "cannot convert a linked worktree (must run in the main repository root)"
+    fi
+  fi
+
+  local root="$top"
+  cd "$root" || die "cannot change to repository root"
+  full_git_dir="$root/.git"
+
+  if ! git -C "$root" rev-parse --verify HEAD &>/dev/null; then
+    die "repository has no commits (cannot convert empty repository)"
+  fi
+
+  local active_branch
+  active_branch=$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null) || active_branch=""
+  if [[ -z "$active_branch" ]]; then
+    die "cannot convert in detached HEAD state (checkout a branch first)"
+  fi
+
+  if [[ -d "$full_git_dir/rebase-merge" || -d "$full_git_dir/rebase-apply" ]]; then
+    die "git rebase in progress; complete or abort it before converting"
+  elif [[ -f "$full_git_dir/MERGE_HEAD" ]]; then
+    die "git merge in progress; complete or abort it before converting"
+  elif [[ -f "$full_git_dir/CHERRY_PICK_HEAD" ]]; then
+    die "git cherry-pick in progress; complete or abort it before converting"
+  elif [[ -f "$full_git_dir/REVERT_HEAD" ]]; then
+    die "git revert in progress; complete or abort it before converting"
+  elif [[ -f "$full_git_dir/BISECT_LOG" ]]; then
+    die "git bisect in progress; complete or abort it before converting"
+  fi
+
+  if [[ -f "$root/.gitmodules" ]]; then
+    git -C "$root" submodule absorbgitdirs 2>/dev/null || true
+    if git -C "$root" submodule status 2>/dev/null | grep -E '^[\+-]' &>/dev/null; then
+      if [[ $force -eq 0 ]]; then
+        die "submodule has uncommitted changes; use --force to proceed anyway"
+      fi
+    fi
+  fi
+
+  local default_branch=""
+  if [[ -n "$opt_default" ]]; then
+    if git -C "$root" rev-parse --verify "refs/heads/$opt_default" &>/dev/null ||
+       git -C "$root" rev-parse --verify "refs/remotes/origin/$opt_default" &>/dev/null; then
+      default_branch="$opt_default"
+    else
+      die "specified default branch '$opt_default' does not exist"
+    fi
+  else
+    default_branch=$(get_default_branch "$full_git_dir" 2>/dev/null) || true
+    if [[ -z "$default_branch" ]]; then
+      default_branch="$active_branch"
+    fi
+  fi
+
+  local default_dir_name="${default_branch//\//-}"
+  local active_dir_name="${active_branch//\//-}"
+
+  local did_stash=0
+  if ! git -C "$root" diff --quiet 2>/dev/null || ! git -C "$root" diff --cached --quiet 2>/dev/null; then
+    git -C "$root" stash push -m "wt convert auto-stash" >&2 || die "failed to stash uncommitted changes"
+    did_stash=1
+  fi
+
+  local -a items_to_restore=()
+  while IFS= read -r -d '' entry; do
+    local prefix="${entry:0:3}"
+    if [[ "$prefix" == "?? " || "$prefix" == "!! " ]]; then
+      local path="${entry:3}"
+      path="${path%/}"
+      [[ -n "$path" ]] && items_to_restore+=("$path")
+    fi
+  done < <(git -C "$root" status --porcelain -z --ignored 2>/dev/null)
+
+  local staging_dir="$full_git_dir/.wt-convert-staging"
+  if [[ -d "$staging_dir" ]]; then
+    if [[ $force -eq 1 ]]; then
+      rm -rf "$staging_dir"
+    else
+      die "staging directory already exists: $staging_dir"
+    fi
+  fi
+
+  local converted_bare=0
+  local created_default=0
+  local created_active=0
+
+  rollback_convert() {
+    local exit_code=$?
+    set +e
+    trap - ERR INT TERM
+    echo "error: conversion failed; rolling back changes..." >&2
+    chmod u+w "$root" 2>/dev/null || true
+    if [[ $created_active -eq 1 && -d "$root/$active_dir_name" ]]; then
+      git -C "$full_git_dir" worktree remove --force "$root/$active_dir_name" 2>/dev/null || rm -rf "$root/$active_dir_name"
+    fi
+    if [[ $created_default -eq 1 && -d "$root/$default_dir_name" ]]; then
+      git -C "$full_git_dir" worktree remove --force "$root/$default_dir_name" 2>/dev/null || rm -rf "$root/$default_dir_name"
+    fi
+    if [[ $converted_bare -eq 1 ]]; then
+      git -C "$full_git_dir" config core.bare false 2>/dev/null || true
+    fi
+    if [[ -d "$staging_dir" ]]; then
+      local old_dotglob old_nullglob
+      old_dotglob=$(shopt -p dotglob || true)
+      old_nullglob=$(shopt -p nullglob || true)
+      shopt -s dotglob nullglob
+      for entry in "$staging_dir"/*; do
+        mv "$entry" "$root/" 2>/dev/null || true
+      done
+      eval "$old_dotglob"
+      eval "$old_nullglob"
+      rm -rf "$staging_dir"
+    fi
+    if [[ $did_stash -eq 1 ]]; then
+      git -C "$root" stash pop 2>/dev/null || true
+    fi
+    exit "$exit_code"
+  }
+
+  set -e
+  trap 'rollback_convert' ERR INT TERM
+
+  mkdir -p "$staging_dir"
+  local old_dotglob old_nullglob
+  old_dotglob=$(shopt -p dotglob || true)
+  old_nullglob=$(shopt -p nullglob || true)
+  shopt -s dotglob nullglob
+  for entry in "$root"/*; do
+    local name="${entry##*/}"
+    [[ "$name" == ".git" ]] && continue
+    mv "$entry" "$staging_dir/"
+  done
+  eval "$old_dotglob"
+  eval "$old_nullglob"
+
+  git -C "$full_git_dir" config core.bare true
+  git -C "$full_git_dir" config --unset core.worktree 2>/dev/null || true
+  converted_bare=1
+
+  if git -C "$full_git_dir" rev-parse --verify "refs/heads/$default_branch" &>/dev/null; then
+    git -C "$full_git_dir" symbolic-ref HEAD "refs/heads/$default_branch" 2>/dev/null || true
+  fi
+
+  if git -C "$full_git_dir" rev-parse --verify "refs/heads/$default_branch" &>/dev/null; then
+    git -C "$full_git_dir" worktree add "$root/$default_dir_name" "$default_branch" >&2
+  elif git -C "$full_git_dir" rev-parse --verify "refs/remotes/origin/$default_branch" &>/dev/null; then
+    git -C "$full_git_dir" worktree add -b "$default_branch" "$root/$default_dir_name" "origin/$default_branch" >&2
+  else
+    git -C "$full_git_dir" worktree add -b "$default_branch" "$root/$default_dir_name" >&2
+  fi
+  created_default=1
+
+  local default_worktree="$root/$default_dir_name"
+  local active_worktree="$default_worktree"
+
+  if [[ "$active_branch" != "$default_branch" ]]; then
+    git -C "$full_git_dir" worktree add "$root/$active_dir_name" "$active_branch" >&2
+    created_active=1
+    active_worktree="$root/$active_dir_name"
+  fi
+
+  for path in "${items_to_restore[@]}"; do
+    local src="$staging_dir/$path"
+    local dst="$active_worktree/$path"
+    if [[ -e "$src" || -L "$src" ]]; then
+      mkdir -p "$(dirname "$dst")"
+      mv "$src" "$dst"
+    fi
+  done
+
+  if [[ "$active_worktree" != "$default_worktree" ]]; then
+    old_nullglob=$(shopt -p nullglob || true)
+    shopt -s nullglob
+    for pattern in ".env*" ".config" ".tool-versions"; do
+      for item in "$active_worktree"/$pattern; do
+        local base="${item##*/}"
+        if [[ ! -e "$default_worktree/$base" && ! -L "$default_worktree/$base" ]]; then
+          cp -R "$item" "$default_worktree/$base" 2>/dev/null || true
+        fi
+      done
+    done
+    eval "$old_nullglob"
+  fi
+
+  if [[ $did_stash -eq 1 ]]; then
+    git -C "$active_worktree" stash pop >&2 || {
+      echo "warning: auto-stash pop resulted in conflicts in $active_worktree" >&2
+    }
+  fi
+
+  set +e
+  trap - ERR INT TERM
+  rm -rf "$staging_dir"
+
+  echo "Converted repository into bare + worktrees layout" >&2
+  echo "  ${C_DIM}.git/${C_RESET}   (bare)" >&2
+  echo "  ${C_GREEN}${default_dir_name}/${C_RESET}   (worktree)" >&2
+  if [[ "$active_branch" != "$default_branch" ]]; then
+    echo "  ${C_GREEN}${active_dir_name}/${C_RESET}   (worktree, active)" >&2
+  fi
+  echo "$active_worktree"
 }
 
 cmd_switch() {
@@ -1042,6 +1300,7 @@ main() {
   shift 2>/dev/null || true
   case "$cmd" in
   clone) cmd_clone "$@" ;;
+  convert) cmd_convert "$@" ;;
   switch) cmd_switch "$@" ;;
   list) cmd_list "$@" ;;
   rm) cmd_rm "$@" ;;
