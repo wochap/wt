@@ -7,7 +7,7 @@ Provide shell function wrapper for automatic directory switching after wt comman
 ## Requirements
 
 ### Requirement: Auto-cd on Switch/Clone
-The system SHALL automatically cd into the worktree after successful switch or clone.
+The system SHALL automatically cd into the worktree after successful switch, clone, or convert.
 
 #### Scenario: Switch with shell wrapper
 - **WHEN** user runs `wt switch <ref>` with shell function loaded
@@ -17,6 +17,11 @@ The system SHALL automatically cd into the worktree after successful switch or c
 #### Scenario: Clone with shell wrapper
 - **WHEN** user runs `wt clone <url>` with shell function loaded
 - **THEN** shell captures stdout (default worktree path)
+- **THEN** shell cd's into that directory
+
+#### Scenario: Convert with shell wrapper
+- **WHEN** user runs `wt convert` with shell function loaded
+- **THEN** shell captures stdout (active worktree path)
 - **THEN** shell cd's into that directory
 
 ### Requirement: Auto-cd After Remove Current

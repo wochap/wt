@@ -11,7 +11,7 @@ The system SHALL provide tab-completion for wt subcommands.
 
 #### Scenario: Complete subcommands
 - **WHEN** user types `wt <TAB>`
-- **THEN** zsh suggests: `clone`, `switch`, `list`, `rm`, `pull`, `doctor`, `rename`, `init`, `completions`, `help`
+- **THEN** zsh suggests: `clone`, `switch`, `list`, `rm`, `pull`, `doctor`, `rename`, `convert`, `init`, `completions`, `help`
 
 #### Scenario: Complete shell argument
 - **WHEN** user types `wt init <TAB>` or `wt completions <TAB>`
@@ -74,6 +74,13 @@ The system SHALL complete worktree directory names and filesystem paths for `wt 
 #### Scenario: Complete paths outside wt project
 - **WHEN** user types `wt pull <TAB>` outside a wt project
 - **THEN** zsh suggests filesystem directory paths
+
+### Requirement: Convert Flag Completion
+The system SHALL complete flags for `wt convert`.
+
+#### Scenario: Complete convert flags
+- **WHEN** user types `wt convert --<TAB>`
+- **THEN** zsh suggests: `--default`, `--force`
 
 ### Requirement: Flags-Last Completion Ordering
 The system SHALL only offer flag completions after at least one positional argument has been provided. Before any positional argument, only value completions (branches, paths, worktree names) SHALL appear.
