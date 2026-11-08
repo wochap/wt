@@ -47,11 +47,19 @@ The system SHALL complete flags for `wt rm`.
 - **THEN** zsh suggests: `--remote`, `--force`
 
 ### Requirement: Remove Worktree Completion
-The system SHALL complete worktree directory names for `wt rm`.
+The system SHALL complete worktree directory names for `wt rm`, visually grouped under `-- worktree --`. The bare `.git` directory and project root SHALL be excluded from suggestions.
 
 #### Scenario: Complete worktree names
 - **WHEN** user types `wt rm <TAB>` inside a wt project
-- **THEN** zsh suggests worktree directory names (relative to project root)
+- **THEN** zsh suggests worktree directory names (relative to project root) under the `-- worktree --` group
+
+#### Scenario: Exclude bare repository and root
+- **WHEN** user types `wt rm <TAB>` inside a wt project
+- **THEN** zsh does not suggest `.git` or empty path
+
+#### Scenario: Multi-worktree completion
+- **WHEN** user types `wt rm <TAB>` inside a wt project with multiple worktrees
+- **THEN** zsh completes all registered worktrees without variable collision or error
 
 ### Requirement: Pull Flag Completion
 The system SHALL complete flags for `wt pull`.
@@ -61,11 +69,11 @@ The system SHALL complete flags for `wt pull`.
 - **THEN** zsh suggests: `--staged`
 
 ### Requirement: Pull Source Completion
-The system SHALL complete worktree directory names and filesystem paths for `wt pull`.
+The system SHALL complete worktree directory names and filesystem paths for `wt pull`. Inside a wt project, worktree names SHALL be visually grouped under `-- worktree --`.
 
 #### Scenario: Complete worktree names for pull
 - **WHEN** user types `wt pull <TAB>` inside a wt project
-- **THEN** zsh suggests worktree directory names (relative to project root)
+- **THEN** zsh suggests worktree directory names (relative to project root) under the `-- worktree --` group
 
 #### Scenario: Complete filesystem paths for pull
 - **WHEN** user types `wt pull <TAB>`
@@ -74,6 +82,10 @@ The system SHALL complete worktree directory names and filesystem paths for `wt 
 #### Scenario: Complete paths outside wt project
 - **WHEN** user types `wt pull <TAB>` outside a wt project
 - **THEN** zsh suggests filesystem directory paths
+
+#### Scenario: Multi-worktree pull completion
+- **WHEN** user types `wt pull <TAB>` inside a wt project with multiple worktrees
+- **THEN** zsh completes both worktrees and directory paths without variable collision or error
 
 ### Requirement: Convert Flag Completion
 The system SHALL complete flags for `wt convert`.
