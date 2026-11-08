@@ -150,14 +150,17 @@ _wt() {
       root=$(dirname "$git_dir")
 
       local -a worktrees
-      while IFS= read -r line; do
-        local path="${line#worktree }"
-        local rel="${path#"$root"/}"
-        [[ -n "$rel" && "$rel" != "$path" ]] && worktrees+=("$rel")
+      local wt_line wt_path wt_rel
+      while IFS= read -r wt_line; do
+        wt_path="${wt_line#worktree }"
+        wt_rel="${wt_path#"$root"/}"
+        [[ -n "$wt_rel" && "$wt_rel" != "$wt_path" && "$wt_rel" != ".git" ]] && worktrees+=("$wt_rel")
       done < <(git -C "$git_dir" worktree list --porcelain 2>/dev/null | grep '^worktree ')
 
+      local expl
       if ((${#worktrees})); then
-        _describe 'worktree' worktrees
+        _description wt-worktree expl 'worktree'
+        compadd "$expl[@]" -V wt-worktree -a worktrees
       fi
     fi
 
@@ -190,14 +193,17 @@ _wt() {
           root=$(dirname "$git_dir")
 
           local -a worktrees
-          while IFS= read -r line; do
-            local path="${line#worktree }"
-            local rel="${path#"$root"/}"
-            [[ -n "$rel" && "$rel" != "$path" ]] && worktrees+=("$rel")
+          local wt_line wt_path wt_rel
+          while IFS= read -r wt_line; do
+            wt_path="${wt_line#worktree }"
+            wt_rel="${wt_path#"$root"/}"
+            [[ -n "$wt_rel" && "$wt_rel" != "$wt_path" && "$wt_rel" != ".git" ]] && worktrees+=("$wt_rel")
           done < <(git -C "$git_dir" worktree list --porcelain 2>/dev/null | grep '^worktree ')
 
+          local expl
           if ((${#worktrees})); then
-            _describe 'worktree' worktrees
+            _description wt-worktree expl 'worktree'
+            compadd "$expl[@]" -V wt-worktree -a worktrees
           fi
         fi
       fi
